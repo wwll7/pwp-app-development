@@ -30,12 +30,14 @@ export function parseCalendar(text: string, now = new Date()): ParsedCalendarEve
       const start = occurrence.toJSDate()
       const end = new ICAL.Time(occurrence).addDuration(event.duration).toJSDate()
       if (end > now && start < horizonEnd) {
-        const key = `${event.uid || event.summary || 'event'}:${occurrence.toString()}`
+        const recurrenceId = occurrence.toString()
+        const key = `${event.uid || event.summary || 'event'}:${recurrenceId}`
         events.push({ id: key, title: event.summary || 'Untitled event', startsAt: start.toISOString(), endsAt: end.toISOString(), localStart: formatLocal(occurrence), localEnd: formatLocal(new ICAL.Time(end.toISOString(), 'utc')), allDay: occurrence.isDate, recurring: Boolean(componentEvent.hasProperty('rrule')), sourceKey: key })
         count += 1
       }
       occurrence = iterator.next()
-      if (!event.isRecurring && count > 0) break
+      if (!event.isRecurring) break
+      if (occurrence && occurrence.toJSDate() >= horizonEnd) break
     }
   }
   return dedupe(events).sort((a, b) => a.startsAt.localeCompare(b.startsAt))
