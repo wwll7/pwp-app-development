@@ -29,6 +29,8 @@ export default function AvailabilityPage() {
   useEffect(() => { const stop = () => setPainting(false); window.addEventListener('pointerup', stop); return () => window.removeEventListener('pointerup', stop) }, [])
 
   async function load() {
+    const callbackError = new URLSearchParams(window.location.search).get('auth_error')
+    if (callbackError) setStatus(`Discord sign-in failed: ${callbackError}`)
     const { data: { user } } = await createClient().auth.getUser()
     setUser(user)
     if (!user) { setStatus('Sign in to edit your availability.'); return }
@@ -58,8 +60,17 @@ export default function AvailabilityPage() {
     }
     setStatus('Save failed. Check your connection and try again.'); setSaving(false)
   }
-  async function signIn() { await createClient().auth.signInWithOAuth({ provider: 'discord', options: { redirectTo: `${window.location.origin}/auth/callback` } }) }
-  async function signOut() { await createClient().auth.signOut(); setUser(null); setStatus('Signed out.') }
+  async function signIn() {
+    setStatus('Opening Discord…')
+    const { error } = await createClient().auth.signInWithOAuth({
+      provider: 'discord',
+      options: {
+        redirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ?? `${window.location.origin}/auth/callback`,
+      },
+    })
+    if (error) setStatus(`Could not start Discord sign-in: ${error.message}`)
+  }
+  async function signOut() { await createClient().auth.signOut(); setUser(null); setProfile(null); setStatus('Signed out.') }
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(saved)
   const week = days.map((offset) => { const date = new Date(weekStart); date.setDate(date.getDate() + offset); return date })
