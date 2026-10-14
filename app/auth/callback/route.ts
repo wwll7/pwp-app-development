@@ -5,15 +5,17 @@ export async function GET(request: Request) {
   const url = new URL(request.url)
   const code = url.searchParams.get('code')
   const authError = url.searchParams.get('error_description') ?? url.searchParams.get('error')
+  const returnTo = url.searchParams.get('returnTo') || '/'
+  const safeReturnTo = returnTo.startsWith('/') && !returnTo.startsWith('//') ? returnTo : '/'
   if (code) {
     const supabase = await createClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (error) {
-      return NextResponse.redirect(new URL(`/availability?auth_error=${encodeURIComponent(error.message)}`, url.origin))
+      return NextResponse.redirect(new URL(`/?auth_error=${encodeURIComponent(error.message)}`, url.origin))
     }
   }
   if (authError) {
-    return NextResponse.redirect(new URL(`/availability?auth_error=${encodeURIComponent(authError)}`, url.origin))
+    return NextResponse.redirect(new URL(`/?auth_error=${encodeURIComponent(authError)}`, url.origin))
   }
-  return NextResponse.redirect(new URL('/', url.origin))
+  return NextResponse.redirect(new URL(safeReturnTo, url.origin))
 }
