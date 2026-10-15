@@ -1,4 +1,6 @@
-import ICAL from 'ical.js'
+import * as ICALModule from 'ical.js'
+
+const ICAL = ICALModule.default
 
 export type ParsedCalendarEvent = {
   id: string
@@ -27,16 +29,21 @@ export function parseCalendar(text: string, now = new Date()): ParsedCalendarEve
     let occurrence = iterator.next()
     let count = 0
     while (occurrence && count < MAX_EVENTS) {
-      const start = occurrence.toJSDate()
-      const end = new ICAL.Time(occurrence).addDuration(event.duration).toJSDate()
+      // getOccurrenceDetails applies RECURRENCE-ID overrides and RANGE=THISANDFUTURE
+      // exceptions, then adds the event's actual iCalendar duration in its timezone.
+      const occurrenceDetails = event.getOccurrenceDetails(occurrence)
+      const startTime = occurrenceDetails.startDate
+      const endTime = occurrenceDetails.endDate
+      const start = startTime.toJSDate()
+      const end = endTime.toJSDate()
       if (end > now && start < horizonEnd) {
         const recurrenceId = occurrence.toString()
         const key = `${event.uid || event.summary || 'event'}:${recurrenceId}`
-        events.push({ id: key, title: event.summary || 'Untitled event', startsAt: start.toISOString(), endsAt: end.toISOString(), localStart: formatLocal(occurrence), localEnd: formatLocal(new ICAL.Time(end.toISOString(), 'utc')), allDay: occurrence.isDate, recurring: Boolean(componentEvent.hasProperty('rrule')), sourceKey: key })
+        events.push({ id: key, title: occurrenceDetails.item?.summary || event.summary || 'Untitled event', startsAt: start.toISOString(), endsAt: end.toISOString(), localStart: formatLocal(startTime), localEnd: formatLocal(endTime), allDay: startTime.isDate, recurring: Boolean(componentEvent.hasProperty('rrule')), sourceKey: key })
         count += 1
       }
       occurrence = iterator.next()
-      if (!event.isRecurring) break
+      if (!event.isRecurring()) break
       if (occurrence && occurrence.toJSDate() >= horizonEnd) break
     }
   }
